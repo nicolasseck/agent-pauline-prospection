@@ -1,0 +1,18 @@
+# Secrets — ne JAMAIS embarquer dans l'image
+.env
+
+# Données générées (fournies au runtime via le volume monté)
+data/
+
+# Environnements et caches Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Divers
+.git/
+docs/
+*.zip
+data/*
+G2S_Agent_IA_avancement.pptx

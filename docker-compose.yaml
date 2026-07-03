@@ -1,0 +1,23 @@
+services:
+  agent:
+    build: .
+    image: g2s-agent-prospection
+    container_name: g2s-agent-prospection
+
+    # Secrets et options : lus depuis le fichier .env à la racine (jamais dans l'image).
+    # Si une variable est absente, elle reste vide (pas d'erreur).
+    environment:
+      PIPEDRIVE_TOKEN: ${PIPEDRIVE_TOKEN:-}
+      NOTIF_WEBHOOK_URL: ${NOTIF_WEBHOOK_URL:-}
+      TZ: Europe/Paris
+      # Décommenter si le réseau de G2S impose un proxy (mêmes valeurs que le navigateur) :
+      # HTTP_PROXY: ${HTTP_PROXY:-}
+      # HTTPS_PROXY: ${HTTPS_PROXY:-}
+
+    # Persistance : la mémoire anti-doublons (siren_vus.json) et les sorties (Excel, recaps)
+    # vivent sur la machine hôte, pas dans le conteneur -> conservées d'une exécution à l'autre.
+    volumes:
+      - ./data:/app/data
+
+    # C'est une tâche ponctuelle : elle s'exécute puis s'arrête, on ne la redémarre pas en boucle.
+    restart: "no"

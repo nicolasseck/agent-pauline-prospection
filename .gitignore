@@ -1,0 +1,15 @@
+# Sorties générées (régénérables)
+data/sorties/*.xlsx
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Secrets — ne JAMAIS committer de clés API
+.env
+data/*
+G2S_Agent_IA_avancement.pptx
+# NB : data/memoire/siren_vus.json est la mémoire de l'agent.
+# Il est volontairement NON ignoré (à conserver / sauvegarder).
