@@ -30,7 +30,7 @@ FILTRES_CIBLE = {
 DEPARTEMENTS_CIBLE = ["75", "92", "93", "94", "77", "78", "91", "95"]  # Île-de-France
 
 # Nombre de NOUVEAUX prospects visés par exécution (objectif commercial : 50/sem.).
-OBJECTIF_PAR_RUN = 20
+OBJECTIF_PAR_RUN = 3
 
 # Seuil de rétention sur le score de priorité (somme de points, max 20 pour les
 # critères automatisables) :

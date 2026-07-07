@@ -28,8 +28,8 @@ CHAMPS_ORG = {
     "siret": "SIRET",
     "siren": "SIREN",                               # absent chez Pauline -> note
     "naf": "Code NAF",                              # absent chez Pauline -> note (code NAF)
-    "secteur_activite": "Secteur d'activité",
-    "chiffre_affaires": "Chiffre d'affaires annuel",
+    "secteur_activite": "Secteur d'activités",
+    "chiffre_affaires": "Chiffre d'affaires",
     "tranche_effectif": "Nombre d'employés",
     "forme_juridique": "Forme juridique",           # absent -> note
     "conventions_idcc": "CCN",
@@ -37,7 +37,7 @@ CHAMPS_ORG = {
     "source": "Source",                             # absent -> note
     "lien_linkedin": "Profil LinkedIn",
     "lien_google": "Recherche Google (DRH/DAF)",    # absent -> note
-    "lien_site_web": "Site internet",               # absent -> note
+    "lien_site_web": "Site web",               # absent -> note
 }
 CHAMP_DEAL_SCORE = "Score de pertinence"
 VALEUR_SOURCE = "Agent IA"
