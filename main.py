@@ -13,27 +13,35 @@ export Excel -> notification (6).
 import os
 from datetime import date
 
-from config.cibles import (FILTRES_CIBLE, OBJECTIF_PAR_RUN, SEUIL_RETENTION,
+from config.cibles import (FILTRES_CIBLE, DEPARTEMENTS_CIBLE, OBJECTIF_PAR_RUN, SEUIL_RETENTION,
                            INJECTER_PIPEDRIVE, EXCLURE_PROCEDURE_COLLECTIVE, NOTIFIER)
-from src.collecte import charger_siren_vus, sauver_siren_vus, collecter, aplatir
+from src.collecte import (charger_siren_vus, sauver_siren_vus, prochain_departement,
+                          collecter, aplatir)
 from src.enrichissement import liens_recherche
 from src.scoring import scorer
 from src.export_excel import exporter_xlsx
 
 RACINE = os.path.dirname(os.path.abspath(__file__))
 CHEMIN_MEMOIRE = os.path.join(RACINE, "data", "memoire", "siren_vus.json")
+CHEMIN_ROTATION = os.path.join(RACINE, "data", "memoire", "rotation_departement.json")
 DOSSIER_SORTIES = os.path.join(RACINE, "data", "sorties")
 
 
 def main():
     stats = {"collectes": 0, "exclus_pc": 0, "injection": None}
 
-    # --- Brique 1 : Collecte (avec mémoire anti-doublons) -----------------------
+    # --- Brique 1 : Collecte (avec mémoire anti-doublons + rotation géographique) -
     siren_vus = charger_siren_vus(CHEMIN_MEMOIRE)
     print(f"Mémoire : {len(siren_vus)} entreprise(s) déjà collectée(s) (ignorées).")
 
-    print("Brique 1 — Collecte (API Recherche d'Entreprises, gratuite)...")
-    brut = collecter(FILTRES_CIBLE, max_resultats=OBJECTIF_PAR_RUN, siren_exclus=siren_vus)
+    filtres = dict(FILTRES_CIBLE)
+    departement = prochain_departement(DEPARTEMENTS_CIBLE, CHEMIN_ROTATION)
+    suffixe = f" — département {departement}" if departement else ""
+    if departement:
+        filtres["departement"] = departement
+
+    print(f"Brique 1 — Collecte (API Recherche d'Entreprises, gratuite){suffixe}...")
+    brut = collecter(filtres, max_resultats=OBJECTIF_PAR_RUN, siren_exclus=siren_vus)
     fiches = [aplatir(e) for e in brut]
     stats["collectes"] = len(fiches)
 
@@ -91,7 +99,9 @@ def main():
         notifier(stats, fiches, DOSSIER_SORTIES, RACINE)
 
     if len(nouveaux) < OBJECTIF_PAR_RUN:
-        print("[i] Cible en cours d'épuisement — changez de département/NAF dans config/cibles.py.")
+        print("[i] Vivier en cours d'épuisement pour ce département — le prochain run "
+              "passera automatiquement au suivant (DEPARTEMENTS_CIBLE). Si ça persiste, "
+              "ajoutez des départements ou des codes NAF dans config/cibles.py.")
 
 
 if __name__ == "__main__":

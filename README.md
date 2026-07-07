@@ -42,7 +42,8 @@ agent_prospection_g2s/
 │   └── referentiels.py        tables de correspondance (codes INSEE → libellés)
 ├── data/
 │   ├── memoire/
-│   │   └── siren_vus.json     mémoire de l'agent (SIREN déjà collectés)
+│   │   ├── siren_vus.json             mémoire de l'agent (SIREN déjà collectés)
+│   │   └── rotation_departement.json  dernier département utilisé (rotation)
 │   └── sorties/
 │       └── prospects_AAAAMMJJ.xlsx   fichiers générés
 └── docs/
@@ -104,6 +105,20 @@ mandataires sociaux. Limite : 7 req/s. Effectif en **tranche** (pas le chiffre e
 
 ## Journal d'avancement
 
+- **2026-07 — Lien site internet de l'entreprise.** Ajout d'une colonne
+  `lien_site_web` (Excel + note Pipedrive) : comme pour le contact DRH/DAF, l'API
+  gratuite ne fournit pas l'URL du site et un domaine deviné serait trop souvent
+  faux, donc l'agent génère un lien de recherche Google (raison sociale + ville)
+  cliquable depuis `src/enrichissement.py`. Aucune extraction.
+- **2026-07 — Diversité des recherches de prospects.** Deux changements dans
+  `src/collecte.py` pour ne plus retomber sur les mêmes prospects (ou des prospects
+  trop similaires) d'une exécution à l'autre : (1) le département ciblé tourne
+  automatiquement à chaque run parmi `DEPARTEMENTS_CIBLE` (config/cibles.py), état
+  mémorisé dans `data/memoire/rotation_departement.json`, au lieu du `departement`
+  unique et figé ; (2) les pages de résultats de l'API sont explorées dans un ordre
+  mélangé plutôt que 1, 2, 3... systématiquement, pour échantillonner plus largement
+  le vivier disponible. La mémoire SIREN (`data/memoire/siren_vus.json`) reste la
+  garantie stricte de non-répétition. Voir `carte.md` §7.
 - **2026-06 — Injection adaptée aux champs de Pauline.** Le module Pipedrive mappe
   désormais nos données sur les champs DÉJÀ présents dans son compte (SIRET, Secteur
   d'activité, Chiffre d'affaires annuel, Nombre d'employés, Nom dirigeant, CCN, Profil

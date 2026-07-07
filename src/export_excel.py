@@ -15,6 +15,7 @@ from src.referentiels import ENTETES
 LIBELLES_LIENS = {
     "lien_linkedin": "Ouvrir LinkedIn",
     "lien_google": "Ouvrir Google",
+    "lien_site_web": "Ouvrir le site internet",
 }
 
 

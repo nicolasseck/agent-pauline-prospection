@@ -87,5 +87,6 @@ ENTETES = {
     "conventions_idcc": "Conventions collectives (IDCC)", "conv_renseignee": "Conv. renseignée",
     "etat": "État", "adresse": "Adresse", "code_postal": "Code postal",
     "ville": "Ville", "departement": "Dpt", "dirigeants": "Dirigeants (mandataires sociaux)",
+    "lien_site_web": "Site internet de l'entreprise",
     "lien_linkedin": "Recherche LinkedIn (DRH/DAF)", "lien_google": "Recherche Google (DRH/DAF)",
 }

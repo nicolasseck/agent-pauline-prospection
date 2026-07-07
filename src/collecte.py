@@ -9,6 +9,11 @@ Mémoire anti-doublons : les fonctions charger_siren_vus / sauver_siren_vus
 permettent à l'orchestrateur d'ignorer les entreprises déjà collectées, pour
 ne ramener que des prospects NOUVEAUX à chaque exécution.
 
+Diversité des recherches : prochain_departement() fait tourner le département
+ciblé à chaque exécution (voir DEPARTEMENTS_CIBLE dans config/cibles.py), et
+collecter() explore les pages de résultats de l'API dans un ordre mélangé plutôt
+que toujours 1, 2, 3... pour ne pas retomber sur les mêmes fiches en tête de liste.
+
 NB : les dirigeants renvoyés sont les mandataires sociaux (président, gérant...),
 PAS le contact DRH/DAF -> c'est l'objet de la brique 2 (enrichissement).
 """
@@ -16,6 +21,7 @@ PAS le contact DRH/DAF -> c'est l'objet de la brique 2 (enrichissement).
 import os
 import json
 import time
+import random
 import requests
 
 from src.referentiels import TRANCHES_EFFECTIF, FORMES_JURIDIQUES, SECTIONS, secteur_prioritaire
@@ -45,18 +51,41 @@ def sauver_siren_vus(siren_set, chemin):
         json.dump(sorted(siren_set), f, ensure_ascii=False)
 
 
+# --- Rotation géographique (diversité des recherches) ---------------------------
+def charger_rotation(chemin):
+    """Index du dernier département utilisé (-1 si aucun run précédent)."""
+    if os.path.exists(chemin):
+        try:
+            with open(chemin, encoding="utf-8") as f:
+                return json.load(f).get("dernier_index", -1)
+        except (json.JSONDecodeError, ValueError):
+            print(f"  [!] {chemin} illisible, on repart du premier département.")
+    return -1
+
+
+def sauver_rotation(index, chemin):
+    os.makedirs(os.path.dirname(chemin), exist_ok=True)
+    with open(chemin, "w", encoding="utf-8") as f:
+        json.dump({"dernier_index": index}, f)
+
+
+def prochain_departement(departements, chemin):
+    """Fait tourner la cible géographique à chaque exécution (round-robin) : deux
+    recherches successives ne portent jamais sur le même département, ce qui évite
+    d'épuiser le même vivier et varie les prospects proposés d'un run à l'autre.
+    Renvoie None si `departements` est vide (comportement inchangé : pas de filtre
+    département)."""
+    if not departements:
+        return None
+    index = (charger_rotation(chemin) + 1) % len(departements)
+    sauver_rotation(index, chemin)
+    return departements[index]
+
+
 # --- Collecte -------------------------------------------------------------------
-def collecter(filtres, max_resultats=50, siren_exclus=None):
-    """Renvoie jusqu'à `max_resultats` entreprises NOUVELLES (SIREN absent de
-    `siren_exclus`), en paginant l'API."""
-    siren_exclus = siren_exclus or set()
-    resultats = []
-    vus_ce_run = set()
-    page = 1
-    while len(resultats) < max_resultats:
-        params = dict(filtres)
-        params["page"] = page
-        params["per_page"] = PER_PAGE
+def _appeler(params, tentatives=3):
+    """Un appel GET à l'API, avec réessai en cas de limite de débit (429)."""
+    for _ in range(tentatives):
         reponse = requests.get(BASE_URL, params=params,
                                headers={"User-Agent": USER_AGENT}, timeout=30)
         if reponse.status_code == 429:
@@ -65,11 +94,43 @@ def collecter(filtres, max_resultats=50, siren_exclus=None):
             time.sleep(attente)
             continue
         reponse.raise_for_status()
-        data = reponse.json()
+        return reponse
+    reponse.raise_for_status()
+    return reponse
 
-        lot = data.get("results", [])
-        if not lot:
+
+def collecter(filtres, max_resultats=50, siren_exclus=None):
+    """Renvoie jusqu'à `max_resultats` entreprises NOUVELLES (SIREN absent de
+    `siren_exclus`), en explorant les pages de résultats de l'API dans un ordre
+    MÉLANGÉ (et non 1, 2, 3... toujours dans le même ordre) : l'API renvoyant un
+    classement stable pour un même filtre, parcourir les pages dans le même ordre
+    à chaque exécution reviendrait à toujours échantillonner la même tranche du
+    vivier -> des prospects moins variés d'une recherche à l'autre."""
+    siren_exclus = siren_exclus or set()
+    resultats = []
+    vus_ce_run = set()
+
+    params = dict(filtres)
+    params["page"] = 1
+    params["per_page"] = PER_PAGE
+    premiere = _appeler(params).json()
+    total_pages = premiere.get("total_pages", 1)
+
+    pages = list(range(1, total_pages + 1))
+    random.shuffle(pages)
+
+    lots_par_page = {1: premiere.get("results", [])}
+    for page in pages:
+        if len(resultats) >= max_resultats:
             break
+        if page in lots_par_page:
+            lot = lots_par_page.pop(page)
+        else:
+            params = dict(filtres)
+            params["page"] = page
+            params["per_page"] = PER_PAGE
+            lot = _appeler(params).json().get("results", [])
+            time.sleep(PAUSE_SECONDES)
 
         for entreprise in lot:
             siren = entreprise.get("siren")
@@ -79,11 +140,6 @@ def collecter(filtres, max_resultats=50, siren_exclus=None):
             resultats.append(entreprise)
             if len(resultats) >= max_resultats:
                 break
-
-        if page >= data.get("total_pages", page):
-            break
-        page += 1
-        time.sleep(PAUSE_SECONDES)
 
     return resultats
 

@@ -37,6 +37,7 @@ CHAMPS_ORG = {
     "source": "Source",                             # absent -> note
     "lien_linkedin": "Profil LinkedIn",
     "lien_google": "Recherche Google (DRH/DAF)",    # absent -> note
+    "lien_site_web": "Site internet",               # absent -> note
 }
 CHAMP_DEAL_SCORE = "Score de pertinence"
 VALEUR_SOURCE = "Agent IA"
