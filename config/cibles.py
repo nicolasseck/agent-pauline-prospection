@@ -27,7 +27,7 @@ FILTRES_CIBLE = {
 # jusqu'à épuisement du vivier). Le dernier département utilisé est mémorisé dans
 # data/memoire/rotation_departement.json ; à chaque run, l'agent passe au suivant.
 # Ajouter des départements ici quand un run ramène moins que OBJECTIF_PAR_RUN.
-DEPARTEMENTS_CIBLE = ["75", "92", "93", "94", "77", "78", "91", "95"]  # Île-de-France
+DEPARTEMENTS_CIBLE = ["75", "92", "93", "94", "77", "78", "91", "95","971", "972", "973", "974", "975", "976" ]  # Île-de-France
 
 # Nombre de NOUVEAUX prospects visés par exécution (objectif commercial : 50/sem.).
 OBJECTIF_PAR_RUN = 3
