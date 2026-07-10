@@ -24,7 +24,8 @@ import time
 import random
 import requests
 
-from src.referentiels import TRANCHES_EFFECTIF, FORMES_JURIDIQUES, SECTIONS, secteur_prioritaire
+from src.referentiels import (TRANCHES_EFFECTIF, FORMES_JURIDIQUES, SECTIONS, secteur_prioritaire,
+                              libelle_idcc, lien_legifrance_idcc)
 
 BASE_URL = "https://recherche-entreprises.api.gouv.fr/search"
 USER_AGENT = "G2S-prospection-agent/1.0 (contact: a-completer@g2s.fr)"
@@ -157,6 +158,22 @@ def _conventions(entreprise):
     return sorted(set(c for c in idcc if c))
 
 
+def _conventions_infos(codes_idcc):
+    """Texte à afficher pour les conventions collectives : le NOM de la convention
+    si connu (referentiels.libelle_idcc, chargé depuis data/convetions_c/convention.json),
+    sinon le code brut — jamais le code affiché à côté d'un nom connu. Si
+    l'entreprise n'a qu'un seul code IDCC et qu'il est reconnu, l'URL Légifrance
+    est aussi renvoyée pour en faire un lien cliquable (colonne séparée)."""
+    if len(codes_idcc) == 1:
+        code = codes_idcc[0]
+        label, lien = libelle_idcc(code), lien_legifrance_idcc(code)
+        if label and lien:
+            return {"texte": label, "url": lien}
+        return {"texte": label or code, "url": None}
+    texte = "; ".join(libelle_idcc(code) or code for code in codes_idcc)
+    return {"texte": texte, "url": None}
+
+
 def _chiffre_affaires(entreprise):
     """CA du dernier bilan disponible."""
     finances = entreprise.get("finances") or {}
@@ -187,6 +204,7 @@ def aplatir(entreprise):
     code_tranche = entreprise.get("tranche_effectif_salarie")
     code_forme = entreprise.get("nature_juridique")
     idcc = _conventions(entreprise)
+    conv = _conventions_infos(idcc)
     sec = secteur_prioritaire(entreprise.get("activite_principale"))
     secteur_lib = sec[0] if sec else SECTIONS.get(entreprise.get("section_activite_principale"), "")
     return {
@@ -202,7 +220,8 @@ def aplatir(entreprise):
         "tranche_effectif": TRANCHES_EFFECTIF.get(code_tranche, "Inconnu"),
         "tranche_effectif_code": code_tranche,  # technique (scoring)
         "chiffre_affaires": _chiffre_affaires(entreprise),
-        "conventions_idcc": "; ".join(idcc),
+        "conventions_idcc": conv["texte"],
+        "conventions_idcc_url": conv["url"],  # technique (lien Légifrance direct si CCN unique et reconnue)
         "conv_renseignee": "Oui" if complements.get("convention_collective_renseignee") else "Non",
         "etat": entreprise.get("etat_administratif"),
         "adresse": siege.get("adresse"),

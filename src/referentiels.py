@@ -1,7 +1,11 @@
 """
 Référentiels — tables de correspondance (codes INSEE -> libellés lisibles).
-Données de référence stables ; rarement modifiées.
+Données de référence stables ; rarement modifiées (sauf les conventions
+collectives, chargées depuis data/convetions_c/convention.json).
 """
+
+import os
+import json
 
 # --- Tranches d'effectif salarié (codes INSEE) ----------------------------------
 # Cible G2S "50 à 500 salariés" => codes ["21", "22", "31", "32"].
@@ -28,6 +32,61 @@ SECTIONS = {
     "R": "Arts, spectacles, loisirs", "S": "Autres activités de services",
     "T": "Activités des ménages employeurs", "U": "Activités extra-territoriales",
 }
+
+# --- Conventions collectives (codes IDCC) : nom usuel + lien Légifrance --------
+# Source : jeu de données data/convetions_c/convention.json (export Légifrance,
+# une ligne par texte : convention de base, avenant ou accord). Chargé une seule
+# fois puis mis en cache. Pour chaque IDCC, on retient le texte "CONVENTION
+# COLLECTIVE..." toujours EN VIGUEUR s'il existe (pas un avenant ni un texte
+# abrogé/dénoncé/périmé), sinon le meilleur texte disponible pour ce code.
+# Un code absent du fichier est affiché tel quel, sans nom ni lien inventés.
+_CHEMIN_CONVENTIONS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                                   "data", "convetions_c", "convention.json")
+_CONVENTIONS_IDCC_CACHE = None
+
+
+def _rang_texte(nature, etat):
+    """Plus le rang est élevé, plus le texte est un bon candidat pour représenter
+    la convention : texte de convention (pas un avenant/accord isolé) ET en
+    vigueur (pas abrogé/dénoncé/périmé/remplacé)."""
+    nature = (nature or "").upper()
+    etat = (etat or "").upper()
+    return ("CONVENTION COLLECTIVE" in nature, etat.startswith("VIGUEUR"))
+
+
+def _charger_conventions_idcc():
+    global _CONVENTIONS_IDCC_CACHE
+    if _CONVENTIONS_IDCC_CACHE is not None:
+        return _CONVENTIONS_IDCC_CACHE
+    meilleurs = {}
+    try:
+        with open(_CHEMIN_CONVENTIONS, encoding="utf-8") as f:
+            lignes = json.load(f)
+        for ligne in lignes:
+            code, titre, url = ligne.get("Unnamed: 3"), ligne.get("Unnamed: 4"), ligne.get("Unnamed: 9")
+            if not code or not titre or not url:
+                continue
+            code = str(code).strip().zfill(4)
+            rang = _rang_texte(ligne.get("Unnamed: 5"), ligne.get("Unnamed: 6"))
+            if code not in meilleurs or rang > meilleurs[code][0]:
+                meilleurs[code] = (rang, titre, url)
+    except (OSError, json.JSONDecodeError, ValueError) as e:
+        print(f"  [!] {_CHEMIN_CONVENTIONS} illisible ({e}) — noms/liens de CCN indisponibles.")
+    _CONVENTIONS_IDCC_CACHE = {code: (titre, url) for code, (_, titre, url) in meilleurs.items()}
+    return _CONVENTIONS_IDCC_CACHE
+
+
+def libelle_idcc(code):
+    """Nom usuel de la convention collective pour un code IDCC, si connu."""
+    infos = _charger_conventions_idcc().get(str(code).strip().zfill(4))
+    return infos[0] if infos else None
+
+
+def lien_legifrance_idcc(code):
+    """URL Légifrance de la convention collective pour un code IDCC, si connue."""
+    infos = _charger_conventions_idcc().get(str(code).strip().zfill(4))
+    return infos[1] if infos else None
+
 
 # --- Secteurs prioritaires (grille Pauline) -------------------------------------
 # Préfixe de code NAF (sans point) -> (libellé, poids). Poids : Très élevée=4, Élevée=3.
@@ -84,7 +143,8 @@ ENTETES = {
     "siren": "SIREN", "raison_sociale": "Raison sociale", "naf": "Code NAF",
     "forme_juridique": "Forme juridique", "categorie": "Catégorie",
     "tranche_effectif": "Effectif (tranche)", "chiffre_affaires": "Chiffre d'affaires (€)",
-    "conventions_idcc": "Conventions collectives (IDCC)", "conv_renseignee": "Conv. renseignée",
+    "conventions_idcc": "Convention(s) collective(s)", "conventions_idcc_url": "Lien Légifrance (CCN)",
+    "conv_renseignee": "Conv. renseignée",
     "etat": "État", "adresse": "Adresse", "code_postal": "Code postal",
     "ville": "Ville", "departement": "Dpt", "dirigeants": "Dirigeants (mandataires sociaux)",
     "lien_site_web": "Site internet de l'entreprise",

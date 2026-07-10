@@ -44,6 +44,8 @@ agent_prospection_g2s/
 │   ├── memoire/
 │   │   ├── siren_vus.json             mémoire de l'agent (SIREN déjà collectés)
 │   │   └── rotation_departement.json  dernier département utilisé (rotation)
+│   ├── convetions_c/
+│   │   └── convention.json    export Légifrance (noms + liens des CCN par IDCC)
 │   └── sorties/
 │       └── prospects_AAAAMMJJ.xlsx   fichiers générés
 └── docs/
@@ -96,7 +98,8 @@ mandataires sociaux. Limite : 7 req/s. Effectif en **tranche** (pas le chiffre e
 - **Liste exacte des secteurs / codes NAF** à cibler (§7).
 - **Règles de scoring** : qu'est-ce qu'un « bon » prospect (seuils effectif/CA, poids
   des secteurs et conventions).
-- **Libellés IDCC** : afficher le nom de la convention à côté du code ? (table Kali).
+- **Libellés IDCC** : ✅ fait pour les 17 conventions les plus fréquentes (voir
+  journal 2026-07) ; à compléter si d'autres secteurs deviennent prioritaires.
 - **Conformité RGPD** : base légale (intérêt légitime B2B) + process de suppression.
 - **Statut judiciaire** : décidé avec Pauline — on **exclut** toutes les entreprises en
   procédure collective (via BODACC), en plus des entreprises cessées (déjà filtrées).
@@ -105,6 +108,25 @@ mandataires sociaux. Limite : 7 req/s. Effectif en **tranche** (pas le chiffre e
 
 ## Journal d'avancement
 
+- **2026-07 — Lien Légifrance de la convention collective.** Répond à l'ancienne
+  décision ouverte « afficher le nom de la convention à côté du code IDCC ? ».
+  `src/referentiels.py` charge désormais `data/convetions_c/convention.json` (export
+  Légifrance, 408 IDCC couverts) au lieu d'une table figée dans le code : pour
+  chaque IDCC, on retient le texte de convention encore EN VIGUEUR (pas un
+  avenant isolé, pas un texte abrogé/dénoncé/périmé) et son URL Légifrance
+  d'origine. Chargé une fois puis mis en cache (`libelle_idcc()` /
+  `lien_legifrance_idcc()`). Un code absent du fichier reste affiché tel quel. La
+  colonne « Convention(s) collective(s) » reste du texte brut (nom si connu, sinon
+  code) ; quand
+  l'entreprise n'a qu'une seule CCN reconnue, une colonne dédiée « Lien Légifrance
+  (CCN) » apparaît en plus (même mécanique que les colonnes lien_linkedin /
+  lien_google / lien_site_web : libellé fixe « Ouvrir Légifrance », cliquable).
+  Si plusieurs CCN ou code inconnu, pas de lien (pas de choix arbitraire entre
+  plusieurs conventions). Côté Pipedrive, l'URL part dans un champ dédié (« Lien
+  CCN (Légifrance) »), comme le champ adresse : directement cliquable sur la
+  fiche organisation, pas besoin d'ouvrir une note — absent chez Pauline -> note,
+  comme les autres champs optionnels. Le champ « CCN » garde le nom en texte brut
+  pour la recherche/le filtrage.
 - **2026-07 — Lien site internet de l'entreprise.** Ajout d'une colonne
   `lien_site_web` (Excel + note Pipedrive) : comme pour le contact DRH/DAF, l'API
   gratuite ne fournit pas l'URL du site et un domaine deviné serait trop souvent

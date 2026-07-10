@@ -18,6 +18,10 @@ LIBELLES_LIENS = {
     "lien_site_web": "Ouvrir le site internet",
 }
 
+# Colonnes de type lien affichant l'URL complète (pas de libellé) : la cellule
+# reste cliquable, mais montre le https://... tel quel.
+COLONNES_LIEN_URL_COMPLETE = {"conventions_idcc_url"}
+
 
 def exporter_xlsx(fiches, chemin):
     """Écrit une liste de fiches (dicts) dans un fichier Excel mis en forme."""
@@ -48,6 +52,10 @@ def exporter_xlsx(fiches, chemin):
             valeur = fiche.get(cle)
             if cle in LIBELLES_LIENS and valeur:
                 cell.value = LIBELLES_LIENS[cle]
+                cell.hyperlink = valeur
+                cell.font = lien_font
+            elif cle in COLONNES_LIEN_URL_COMPLETE and valeur:
+                cell.value = valeur
                 cell.hyperlink = valeur
                 cell.font = lien_font
             else:

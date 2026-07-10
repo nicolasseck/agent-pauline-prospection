@@ -33,6 +33,7 @@ CHAMPS_ORG = {
     "tranche_effectif": "Nombre d'employés",
     "forme_juridique": "Forme juridique",           # absent -> note
     "conventions_idcc": "CCN",
+    "conventions_idcc_url": "Lien CCN (Légifrance)",  # absent -> note ; sinon cliquable comme le champ adresse
     "dirigeants": "Nom dirigeant",
     "source": "Source",                             # absent -> note
     "lien_linkedin": "Profil LinkedIn",
