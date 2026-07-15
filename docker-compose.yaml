@@ -9,6 +9,7 @@ services:
     environment:
       PIPEDRIVE_TOKEN: ${PIPEDRIVE_TOKEN:-}
       NOTIF_WEBHOOK_URL: ${NOTIF_WEBHOOK_URL:-}
+      CONFIG_SHEET_URL: ${CONFIG_SHEET_URL:-}
       TZ: Europe/Paris
       # Décommenter si le réseau de G2S impose un proxy (mêmes valeurs que le navigateur) :
       # HTTP_PROXY: ${HTTP_PROXY:-}

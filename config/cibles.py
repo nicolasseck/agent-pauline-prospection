@@ -30,7 +30,7 @@ FILTRES_CIBLE = {
 DEPARTEMENTS_CIBLE = ["75", "92", "93", "94", "77", "78", "91", "95","971", "972", "973", "974", "975", "976" ]  # Île-de-France
 
 # Nombre de NOUVEAUX prospects visés par exécution (objectif commercial : 50/sem.).
-OBJECTIF_PAR_RUN = 50
+OBJECTIF_PAR_RUN = 2
 
 # Seuil de rétention sur le score de priorité (somme de points, max 20 pour les
 # critères automatisables) :
@@ -50,3 +50,33 @@ EXCLURE_PROCEDURE_COLLECTIVE = True
 # Notification de fin d'exécution (récapitulatif). Toujours affiché + enregistré en
 # fichier ; envoi vers Slack/Teams en plus si NOTIF_WEBHOOK_URL est défini dans .env.
 NOTIFIER = True
+
+# --- Surcharge externe (Google Sheet de Pauline, optionnel) ---------------------
+# Si CONFIG_SHEET_URL est défini dans .env (URL d'un Google Sheet publié sur le
+# web en CSV), les valeurs ci-dessus sont remplacées par celles de la feuille,
+# ligne par ligne (une ligne vide ou absente = la valeur ci-dessus est
+# conservée). Voir config/surcharge_config.py pour le format attendu et pourquoi
+# ce n'est pas un fichier Excel OneDrive (partage anonyme bloqué par l'IT G2S).
+# Sans CONFIG_SHEET_URL, ce bloc ne change rien : seules les valeurs ci-dessus
+# s'appliquent.
+import os as _os
+from config.surcharge_config import appliquer_surcharges as _appliquer_surcharges
+
+_RACINE = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+_SURCHARGE = _appliquer_surcharges({
+    "FILTRES_CIBLE": FILTRES_CIBLE,
+    "DEPARTEMENTS_CIBLE": DEPARTEMENTS_CIBLE,
+    "OBJECTIF_PAR_RUN": OBJECTIF_PAR_RUN,
+    "SEUIL_RETENTION": SEUIL_RETENTION,
+    "INJECTER_PIPEDRIVE": INJECTER_PIPEDRIVE,
+    "EXCLURE_PROCEDURE_COLLECTIVE": EXCLURE_PROCEDURE_COLLECTIVE,
+    "NOTIFIER": NOTIFIER,
+}, _RACINE)
+
+FILTRES_CIBLE = _SURCHARGE["FILTRES_CIBLE"]
+DEPARTEMENTS_CIBLE = _SURCHARGE["DEPARTEMENTS_CIBLE"]
+OBJECTIF_PAR_RUN = _SURCHARGE["OBJECTIF_PAR_RUN"]
+SEUIL_RETENTION = _SURCHARGE["SEUIL_RETENTION"]
+INJECTER_PIPEDRIVE = _SURCHARGE["INJECTER_PIPEDRIVE"]
+EXCLURE_PROCEDURE_COLLECTIVE = _SURCHARGE["EXCLURE_PROCEDURE_COLLECTIVE"]
+NOTIFIER = _SURCHARGE["NOTIFIER"]

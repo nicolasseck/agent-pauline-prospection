@@ -79,6 +79,28 @@ Tout se règle dans **`config/cibles.py`** : secteurs, tranches d'effectif, form
 département, objectif par run. Si un run ramène moins de prospects que l'objectif,
 c'est que la cible s'épuise → changer de département ou de codes NAF.
 
+**Alternative sans toucher au code** : si `CONFIG_SHEET_URL` est défini dans
+`.env`, ses valeurs remplacent celles de `config/cibles.py` — ligne par ligne,
+une ligne vide ou absente laissant la valeur du code inchangée. **En production
+(conteneur Docker chez un hébergeur), ce doit être un lien Google Sheet** — pas
+un fichier OneDrive : le tenant Microsoft 365 de G2S interdit les liens de
+partage anonymes, un Google Sheet n'est pas concerné (compte Google, pas le
+tenant G2S). N'importe quel lien Google Sheets standard convient (le lien
+"Copier le lien" du bouton Partager) — il est converti automatiquement en URL
+d'export CSV. Seule condition : partagé en lecture pour **"Toute personne
+disposant du lien"** (pas "Accès restreint", sinon Google redirige vers une
+page de connexion que le conteneur ne peut pas franchir). Un fichier `.xlsx`
+local reste accepté, uniquement pour des tests hors conteneur. Voir
+`config/surcharge_config.py` pour le format exact des lignes reconnues.
+
+**Fichier modèle** : `docs/modele_config_prospection.xlsx` (pré-rempli avec les
+valeurs actuelles de `config/cibles.py`, une colonne "Description" par ligne).
+Pauline l'importe dans un nouveau Google Sheet (Fichier > Importer), l'ajuste,
+le partage ("Toute personne disposant du lien", rôle Lecteur), puis colle le
+lien copié dans `CONFIG_SHEET_URL`. Régénérable avec
+`python config/generer_modele_excel.py` si les valeurs par défaut de
+`config/cibles.py` changent.
+
 ---
 
 ## Source de données
@@ -98,8 +120,8 @@ mandataires sociaux. Limite : 7 req/s. Effectif en **tranche** (pas le chiffre e
 - **Liste exacte des secteurs / codes NAF** à cibler (§7).
 - **Règles de scoring** : qu'est-ce qu'un « bon » prospect (seuils effectif/CA, poids
   des secteurs et conventions).
-- **Libellés IDCC** : ✅ fait pour les 17 conventions les plus fréquentes (voir
-  journal 2026-07) ; à compléter si d'autres secteurs deviennent prioritaires.
+- **Libellés IDCC** : ✅ fait, sourcé depuis un export Légifrance couvrant 408
+  IDCC (voir journal 2026-07) ; un code absent reste affiché tel quel.
 - **Conformité RGPD** : base légale (intérêt légitime B2B) + process de suppression.
 - **Statut judiciaire** : décidé avec Pauline — on **exclut** toutes les entreprises en
   procédure collective (via BODACC), en plus des entreprises cessées (déjà filtrées).
@@ -108,6 +130,35 @@ mandataires sociaux. Limite : 7 req/s. Effectif en **tranche** (pas le chiffre e
 
 ## Journal d'avancement
 
+- **2026-07 — Configuration externe via Google Sheet.** Nouveau module
+  `config/surcharge_config.py` : si `CONFIG_SHEET_URL` (`.env`) est défini, ses
+  valeurs remplacent celles de `config/cibles.py` au chargement — variable par
+  variable, une ligne vide ou absente laissant la valeur du code inchangée. Une
+  valeur invalide (mauvais type, booléen non reconnu) est ignorée avec un
+  message, jamais bloquante. Objectif : Pauline ajuste le ciblage sans toucher
+  au code. Sans `CONFIG_SHEET_URL`, aucun changement de comportement.
+  **Détour OneDrive/SharePoint abandonné** : premier essai avec un lien de
+  partage OneDrive téléchargé par HTTP, mais le tenant Microsoft 365 de G2S
+  interdit les liens "Toute personne disposant du lien" (constaté à l'écran de
+  partage — seules les options "personnes de l'organisation" ou "personnes
+  choisies" existent, toutes deux nécessitant une authentification qu'un
+  conteneur non interactif ne peut pas fournir sans API Graph + app
+  registration). Solution retenue à la place : un **Google Sheet partagé**
+  ("Toute personne disposant du lien", rôle Lecteur), hors de la politique de
+  partage du tenant G2S puisque c'est un compte Google — le conteneur le
+  télécharge par un simple GET HTTP (`requests`), sans authentification. Un
+  fichier `.xlsx` local reste accepté en plus, pour tester hors conteneur.
+  `docker-compose.yaml` transmet la variable au conteneur. Fichier modèle :
+  `docs/modele_config_prospection.xlsx`, généré par
+  `config/generer_modele_excel.py`, à importer dans Google Sheets.
+  **Correctif** : `CONFIG_SHEET_URL` acceptait initialement seulement une URL
+  de publication CSV (Fichier > Partager > Publier sur le web), une étape
+  cachée que Pauline n'avait pas suivie — collé le lien "Copier le lien"
+  standard, le code parsait alors du HTML comme du CSV sans erreur mais sans
+  rien appliquer non plus (silencieux, trompeur). `config/surcharge_config.py`
+  convertit désormais automatiquement n'importe quel lien Google Sheets
+  standard vers l'URL d'export CSV, et signale explicitement le cas "0
+  variable reconnue" plutôt que d'afficher un faux message de succès.
 - **2026-07 — Lien Légifrance de la convention collective.** Répond à l'ancienne
   décision ouverte « afficher le nom de la convention à côté du code IDCC ? ».
   `src/referentiels.py` charge désormais `data/convetions_c/convention.json` (export

@@ -14,3 +14,4 @@ G2S_Agent_IA_avancement.pptx
 # NB : data/memoire/siren_vus.json est la mémoire de l'agent.
 # Il est volontairement NON ignoré (à conserver / sauvegarder).
 .venv
+docs/modele_config_prospection.xlsx
