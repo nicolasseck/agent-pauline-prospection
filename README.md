@@ -130,6 +130,18 @@ mandataires sociaux. Limite : 7 req/s. Effectif en **tranche** (pas le chiffre e
 
 ## Journal d'avancement
 
+- **2026-07 — Adresse affichée = établissement correspondant, pas toujours le
+  siège.** Bug détecté en filtrant sur un département d'outre-mer (971) : des
+  entreprises dont le SIÈGE est à Paris (ex. MASFIP) apparaissaient dans les
+  résultats, avec l'adresse du siège affichée — trompeur, car le filtre
+  `departement` de l'API Recherche d'Entreprises matche au niveau
+  ÉTABLISSEMENT, pas siège (MASFIP a une antenne DRFIP en Guadeloupe qui a fait
+  matcher la recherche). `src/collecte.py` : nouvelle fonction
+  `_etablissement_pertinent()` — cherche dans `matching_etablissements` le
+  premier établissement ACTIF qui n'est PAS le siège et affiche SON adresse
+  (`adresse`, `code_postal`, `ville`, `departement`) ; à défaut, retombe sur le
+  siège comme avant (aucune régression pour les entreprises mono-site). Le
+  SIRET reste volontairement celui du siège (identité légale, dédup Pipedrive).
 - **2026-07 — Configuration externe via Google Sheet.** Nouveau module
   `config/surcharge_config.py` : si `CONFIG_SHEET_URL` (`.env`) est défini, ses
   valeurs remplacent celles de `config/cibles.py` au chargement — variable par

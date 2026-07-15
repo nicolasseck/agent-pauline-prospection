@@ -182,6 +182,29 @@ def _chiffre_affaires(entreprise):
     return (finances[max(finances.keys())] or {}).get("ca")
 
 
+def _departement_depuis_code_postal(code_postal):
+    """Dérive le département depuis un code postal (repli quand le champ
+    'departement' est absent — observé dans matching_etablissements)."""
+    if not code_postal:
+        return None
+    cp = str(code_postal).strip()
+    return cp[:3] if cp[:2] in ("97", "98") else cp[:2]
+
+
+def _etablissement_pertinent(entreprise):
+    """Établissement dont on affiche l'adresse. L'API filtre (ex. departement)
+    au niveau ÉTABLISSEMENT, pas siège : une entreprise dont le siège est à
+    Paris peut matcher un filtre "département 971" via une antenne en
+    Guadeloupe — matching_etablissements liste alors cette antenne. On y
+    cherche le premier établissement ACTIF qui n'est PAS le siège (c'est celui
+    qui a réellement fait matcher la recherche) ; sinon on retombe sur le
+    siège, comme avant."""
+    for etab in entreprise.get("matching_etablissements") or []:
+        if etab.get("etat_administratif") == "A" and not etab.get("est_siege"):
+            return etab
+    return entreprise.get("siege") or {}
+
+
 def _dirigeants(entreprise):
     """Dirigeants personnes physiques (exclut personnes morales et CAC)."""
     noms = []
@@ -200,6 +223,7 @@ def _dirigeants(entreprise):
 def aplatir(entreprise):
     """Transforme un résultat brut de l'API en fiche propre et exploitable."""
     siege = entreprise.get("siege") or {}
+    etab = _etablissement_pertinent(entreprise)
     complements = entreprise.get("complements") or {}
     code_tranche = entreprise.get("tranche_effectif_salarie")
     code_forme = entreprise.get("nature_juridique")
@@ -224,9 +248,11 @@ def aplatir(entreprise):
         "conventions_idcc_url": conv["url"],  # technique (lien Légifrance direct si CCN unique et reconnue)
         "conv_renseignee": "Oui" if complements.get("convention_collective_renseignee") else "Non",
         "etat": entreprise.get("etat_administratif"),
-        "adresse": siege.get("adresse"),
-        "code_postal": siege.get("code_postal"),
-        "ville": siege.get("libelle_commune") or siege.get("commune"),
-        "departement": siege.get("departement"),
+        # Adresse de l'établissement pertinent (peut différer du siège — voir
+        # _etablissement_pertinent), pas systématiquement celle du siège.
+        "adresse": etab.get("adresse"),
+        "code_postal": etab.get("code_postal"),
+        "ville": etab.get("libelle_commune") or etab.get("commune"),
+        "departement": etab.get("departement") or _departement_depuis_code_postal(etab.get("code_postal")),
         "dirigeants": _dirigeants(entreprise),  # mandataires sociaux, PAS le DRH/DAF
     }
