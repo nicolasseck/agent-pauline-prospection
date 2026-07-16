@@ -100,6 +100,30 @@ class Pipedrive:
             self._org = self._indexer(self._req("GET", "/organizationFields")["data"])
             self._deal = self._indexer(self._req("GET", "/dealFields")["data"])
 
+    def lister_organisations_siren(self):
+        """Renvoie la liste (raison_sociale, SIREN) des organisations Pipedrive
+        qui ont le champ SIREN renseigné. Pagine sur /organizations — lecture
+        seule, ne modifie rien."""
+        self._charger_champs()
+        champ = self._org.get(CHAMPS_ORG["siren"])
+        if not champ:
+            raise RuntimeError(f"Champ « {CHAMPS_ORG['siren']} » introuvable dans les "
+                              f"organisations Pipedrive (voir CHAMPS_ORG dans ce fichier).")
+        cle = champ["key"]
+        resultats = []
+        debut = 0
+        while True:
+            page = self._req("GET", "/organizations", params={"start": debut, "limit": 500})
+            for org in page.get("data") or []:
+                siren = org.get(cle)
+                if siren:
+                    resultats.append((org.get("name") or "?", str(siren)))
+            pagination = (page.get("additional_data") or {}).get("pagination") or {}
+            if not pagination.get("more_items_in_collection"):
+                break
+            debut = pagination.get("next_start", debut + 500)
+        return sorted(resultats)
+
     def _valeur(self, champ_def, valeur):
         """Formate la valeur selon le TYPE réel du champ.
         Renvoie None si la valeur ne convient pas au type (=> à mettre en note)."""
