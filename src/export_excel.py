@@ -54,8 +54,8 @@ def exporter_xlsx(fiches, chemin):
                 cell.value = LIBELLES_LIENS[cle]
                 cell.hyperlink = valeur
                 cell.font = lien_font
-            elif cle in COLONNES_LIEN_URL_COMPLETE and valeur:
-                cell.value = valeur
+            elif cle in COLONNES_LIEN_URL_COMPLETE and valeur and "; " not in str(valeur):
+                cell.value = valeur  # un seul lien -> cellule cliquable
                 cell.hyperlink = valeur
                 cell.font = lien_font
             else:

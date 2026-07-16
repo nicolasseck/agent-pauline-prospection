@@ -159,19 +159,19 @@ def _conventions(entreprise):
 
 
 def _conventions_infos(codes_idcc):
-    """Texte à afficher pour les conventions collectives : le NOM de la convention
-    si connu (referentiels.libelle_idcc, chargé depuis data/convetions_c/convention.json),
-    sinon le code brut — jamais le code affiché à côté d'un nom connu. Si
-    l'entreprise n'a qu'un seul code IDCC et qu'il est reconnu, l'URL Légifrance
-    est aussi renvoyée pour en faire un lien cliquable (colonne séparée)."""
-    if len(codes_idcc) == 1:
-        code = codes_idcc[0]
+    """Texte à afficher pour les conventions collectives : la description
+    complète de chaque convention si connue (referentiels.libelle_idcc, chargé
+    depuis data/convetions_c/convention.json), sinon le code brut — plusieurs
+    conventions sont jointes par "; ". `url` liste, dans le même ordre et avec
+    le même séparateur, le lien Légifrance de CHAQUE convention reconnue (un
+    code inconnu de la table n'a simplement pas de lien, jamais inventé)."""
+    textes, liens = [], []
+    for code in codes_idcc:
         label, lien = libelle_idcc(code), lien_legifrance_idcc(code)
-        if label and lien:
-            return {"texte": label, "url": lien}
-        return {"texte": label or code, "url": None}
-    texte = "; ".join(libelle_idcc(code) or code for code in codes_idcc)
-    return {"texte": texte, "url": None}
+        textes.append(label or code)
+        if lien:
+            liens.append(lien)
+    return {"texte": "; ".join(textes), "url": "; ".join(liens) if liens else None}
 
 
 def _chiffre_affaires(entreprise):
