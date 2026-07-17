@@ -17,6 +17,12 @@ param(
     [string]$Heure = "08:30"
 )
 
+$estAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+if (-not $estAdmin) {
+    Write-Error "Ce script doit être lancé dans un PowerShell EN ADMINISTRATEUR (clic droit sur PowerShell > Exécuter en tant qu'administrateur), sinon la création de la tâche échoue avec un « Accès refusé »."
+    exit 1
+}
+
 $cheminProjet = $PSScriptRoot
 $cheminPython = Join-Path $cheminProjet ".venv\Scripts\python.exe"
 $nomTache = "Agent prospection G2S"
@@ -31,12 +37,17 @@ $trigger = New-ScheduledTaskTrigger -Daily -At $Heure
 $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
 $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Hours 2)
 
-Register-ScheduledTask -TaskName $nomTache -Action $action -Trigger $trigger `
-    -Principal $principal -Settings $settings `
-    -Description "Exécute l'agent de prospection G2S tous les jours à $Heure" -Force | Out-Null
+try {
+    Register-ScheduledTask -TaskName $nomTache -Action $action -Trigger $trigger `
+        -Principal $principal -Settings $settings `
+        -Description "Exécute l'agent de prospection G2S tous les jours à $Heure" -Force -ErrorAction Stop | Out-Null
+} catch {
+    Write-Error "Échec de la création de la tâche : $($_.Exception.Message)"
+    exit 1
+}
 
 Write-Host "Tâche « $nomTache » créée (tous les jours à $Heure, dossier $cheminProjet)."
 Write-Host "Test immédiat..."
-Start-ScheduledTask -TaskName $nomTache
+Start-ScheduledTask -TaskName $nomTache -ErrorAction Stop
 Start-Sleep -Seconds 5
 Get-ScheduledTaskInfo -TaskName $nomTache | Format-List TaskName, LastRunTime, LastTaskResult, NextRunTime
