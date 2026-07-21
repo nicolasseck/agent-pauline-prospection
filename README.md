@@ -39,13 +39,15 @@ agent_prospection_g2s/
 │   ├── pipedrive.py           brique 5 — (squelette)
 │   ├── notification.py        brique 6 — (squelette)
 │   ├── export_excel.py        export Excel formaté (sortie commune)
+│   ├── legifrance.py          nom + lien Légifrance des CCN, EN DIRECT (API PISTE)
 │   └── referentiels.py        tables de correspondance (codes INSEE → libellés)
 ├── data/
 │   ├── memoire/
 │   │   ├── siren_vus.json             mémoire de l'agent (SIREN déjà collectés)
 │   │   └── rotation_departement.json  dernier département utilisé (rotation)
 │   ├── convetions_c/
-│   │   └── convention.json    export Légifrance (noms + liens des CCN par IDCC)
+│   │   ├── convention.json    export Légifrance (repli hors-ligne, noms + liens par IDCC)
+│   │   └── cache_idcc.json    cache des IDCC déjà résolus via l'API Légifrance
 │   └── sorties/
 │       └── prospects_AAAAMMJJ.xlsx   fichiers générés
 └── docs/
@@ -120,8 +122,12 @@ mandataires sociaux. Limite : 7 req/s. Effectif en **tranche** (pas le chiffre e
 - **Liste exacte des secteurs / codes NAF** à cibler (§7).
 - **Règles de scoring** : qu'est-ce qu'un « bon » prospect (seuils effectif/CA, poids
   des secteurs et conventions).
-- **Libellés IDCC** : ✅ fait, sourcé depuis un export Légifrance couvrant 408
-  IDCC (voir journal 2026-07) ; un code absent reste affiché tel quel.
+- **Libellés IDCC** : ✅ fait, interrogé EN DIRECT sur l'API officielle Légifrance
+  (voir journal 2026-07) ; un export statique (408 IDCC) sert de repli si l'API
+  est inaccessible. Un code introuvable des deux côtés reste affiché tel quel.
+  **Reste à faire** : créer un compte PISTE (piste.gouv.fr) et renseigner
+  LEGIFRANCE_CLIENT_ID / LEGIFRANCE_CLIENT_SECRET dans `.env` pour activer l'appel
+  live (sans ces identifiants, l'agent continue de fonctionner via le repli).
 - **Conformité RGPD** : base légale (intérêt légitime B2B) + process de suppression.
 - **Statut judiciaire** : décidé avec Pauline — on **exclut** toutes les entreprises en
   procédure collective (via BODACC), en plus des entreprises cessées (déjà filtrées).
@@ -130,6 +136,27 @@ mandataires sociaux. Limite : 7 req/s. Effectif en **tranche** (pas le chiffre e
 
 ## Journal d'avancement
 
+- **2026-07-21 — Convention collective en direct via l'API Légifrance.** Nouveau
+  module `src/legifrance.py` : interroge l'API officielle Légifrance (PISTE,
+  endpoint `/consult/kaliContIdcc`) pour obtenir le nom usuel et le lien
+  légifrance.gouv.fr de la convention collective de chaque IDCC, à la place du
+  seul export statique `data/convetions_c/convention.json` (figé au jour de sa
+  génération, limité à 408 IDCC). Authentification par compte PISTE gratuit
+  (`LEGIFRANCE_CLIENT_ID` / `LEGIFRANCE_CLIENT_SECRET` dans `.env`, voir
+  `.env.example`). **Fail-open à deux niveaux**, comme le reste de l'agent :
+  (1) sans identifiants configurés, ou API en panne/quota dépassé, l'agent se
+  replie automatiquement sur l'export statique (comportement inchangé) ; (2) un
+  IDCC confirmé absent des deux sources reste affiché tel quel, jamais de nom ou
+  lien inventé. Chaque IDCC résolu (trouvé ou confirmé introuvable) est mis en
+  cache dans `data/convetions_c/cache_idcc.json` : un même code n'est interrogé
+  qu'une seule fois au total, jamais à chaque run. Le format final envoyé (colonne
+  Excel « Convention(s) collective(s) » + « Lien Légifrance (CCN) », champs
+  Pipedrive « CCN » + « Lien CCN (Légifrance) ») est **strictement identique** à
+  avant : seule la source des données change, dans `src/referentiels.py`
+  (fonctions `libelle_idcc()` / `lien_legifrance_idcc()` inchangées côté
+  appelants). ⚠️ Le nom exact des champs de la réponse de l'API n'a pas encore
+  été validé sur un compte PISTE réel — à confirmer au premier run avec de vrais
+  identifiants (voir décision ouverte plus haut).
 - **2026-07 — Adresse affichée = établissement correspondant, pas toujours le
   siège.** Bug détecté en filtrant sur un département d'outre-mer (971) : des
   entreprises dont le SIÈGE est à Paris (ex. MASFIP) apparaissaient dans les

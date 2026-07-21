@@ -1,11 +1,14 @@
 """
 Référentiels — tables de correspondance (codes INSEE -> libellés lisibles).
 Données de référence stables ; rarement modifiées (sauf les conventions
-collectives, chargées depuis data/convetions_c/convention.json).
+collectives, interrogées en direct via l'API Légifrance — src/legifrance.py —
+avec data/convetions_c/convention.json comme repli hors-ligne).
 """
 
 import os
 import json
+
+from src.legifrance import infos_idcc as _infos_idcc_legifrance
 
 # --- Tranches d'effectif salarié (codes INSEE) ----------------------------------
 # Cible G2S "50 à 500 salariés" => codes ["21", "22", "31", "32"].
@@ -34,12 +37,15 @@ SECTIONS = {
 }
 
 # --- Conventions collectives (codes IDCC) : nom usuel + lien Légifrance --------
-# Source : jeu de données data/convetions_c/convention.json (export Légifrance,
-# une ligne par texte : convention de base, avenant ou accord). Chargé une seule
-# fois puis mis en cache. Pour chaque IDCC, on retient le texte "CONVENTION
-# COLLECTIVE..." toujours EN VIGUEUR s'il existe (pas un avenant ni un texte
-# abrogé/dénoncé/périmé), sinon le meilleur texte disponible pour ce code.
-# Un code absent du fichier est affiché tel quel, sans nom ni lien inventés.
+# Source PRIMAIRE : l'API officielle Légifrance, interrogée EN DIRECT pour
+# chaque IDCC (src/legifrance.py — nécessite un compte PISTE, voir .env.example).
+# Source DE REPLI : l'ancien export statique data/convetions_c/convention.json
+# (une ligne par texte : convention de base, avenant ou accord), utilisé
+# uniquement si l'API est inaccessible (identifiants absents, panne, quota) ou
+# si l'IDCC n'y est pas confirmé — pour ce repli, on retient le texte
+# "CONVENTION COLLECTIVE..." toujours EN VIGUEUR s'il existe (pas un avenant ni
+# un texte abrogé/dénoncé/périmé), sinon le meilleur texte disponible.
+# Un code introuvable des deux côtés est affiché tel quel, sans nom ni lien inventés.
 _CHEMIN_CONVENTIONS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                                    "data", "convetions_c", "convention.json")
 _CONVENTIONS_IDCC_CACHE = None
@@ -76,15 +82,23 @@ def _charger_conventions_idcc():
     return _CONVENTIONS_IDCC_CACHE
 
 
+def _infos_idcc(code):
+    """(titre, url Légifrance) pour un code IDCC : API Légifrance en direct
+    d'abord (src/legifrance.py, avec son propre cache), export statique en
+    repli sinon (identifiants absents, panne, ou IDCC non confirmé par l'API)."""
+    code = str(code).strip().zfill(4)
+    return _infos_idcc_legifrance(code) or _charger_conventions_idcc().get(code)
+
+
 def libelle_idcc(code):
     """Nom usuel de la convention collective pour un code IDCC, si connu."""
-    infos = _charger_conventions_idcc().get(str(code).strip().zfill(4))
+    infos = _infos_idcc(code)
     return infos[0] if infos else None
 
 
 def lien_legifrance_idcc(code):
     """URL Légifrance de la convention collective pour un code IDCC, si connue."""
-    infos = _charger_conventions_idcc().get(str(code).strip().zfill(4))
+    infos = _infos_idcc(code)
     return infos[1] if infos else None
 
 
