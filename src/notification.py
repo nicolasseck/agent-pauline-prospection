@@ -34,6 +34,8 @@ def construire_resume(stats, fiches):
     """Compose le texte du récapitulatif à partir des statistiques du run."""
     jour = datetime.date.today().strftime("%d/%m/%Y")
     lignes = [f"Agent de prospection G2S — exécution du {jour}", ""]
+    if stats.get("source_config"):
+        lignes.append(f"Configuration utilisée : {stats['source_config']}")
     lignes.append(f"Nouveaux prospects collectés : {stats.get('collectes', 0)}")
     if stats.get("exclus_pc"):
         lignes.append(f"Exclus (procédure collective) : {stats['exclus_pc']}")

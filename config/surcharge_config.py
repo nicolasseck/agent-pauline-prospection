@@ -160,13 +160,18 @@ def appliquer_surcharges(valeurs, racine):
     DEPARTEMENTS_CIBLE, OBJECTIF_PAR_RUN, SEUIL_RETENTION, INJECTER_PIPEDRIVE,
     EXCLURE_PROCEDURE_COLLECTIVE, NOTIFIER). Renvoie un dict de même forme, avec
     les valeurs de la source externe appliquées quand elles sont définies et
-    valides ; sinon les valeurs par défaut sont conservées telles quelles."""
+    valides (sinon les valeurs par défaut sont conservées telles quelles), plus
+    une clé "_source" (texte lisible décrivant d'où viennent les valeurs —
+    repris dans le récapitulatif de fin d'exécution, voir SOURCE_CONFIG dans
+    cibles.py)."""
     source = _source_externe(racine)
     if not source:
-        return valeurs  # rien de configuré -> comportement inchangé
+        valeurs["_source"] = "config/cibles.py (aucune source externe configurée)"
+        return valeurs
     if not _est_url(source) and not os.path.exists(source):
         print(f"  [!] {NOM_VARIABLE_ENV} pointe vers un fichier local introuvable ({source}) — "
               f"config/cibles.py utilisé tel quel.")
+        valeurs["_source"] = f"config/cibles.py (fichier local introuvable : {source})"
         return valeurs
 
     try:
@@ -175,12 +180,14 @@ def appliquer_surcharges(valeurs, racine):
         print(f"  [!] Config externe illisible ({e}) — config/cibles.py utilisé tel quel. "
               f"Si {NOM_VARIABLE_ENV} est un Google Sheet, vérifier qu'il est bien partagé en "
               f"lecture pour \"Toute personne disposant du lien\" (bouton Partager > Général).")
+        valeurs["_source"] = f"config/cibles.py (source externe illisible : {source})"
         return valeurs
 
     if not lignes:
         print(f"  [!] Config externe : 0 variable reconnue dans {source} — config/cibles.py "
               f"utilisé tel quel. Vérifier le partage (\"Toute personne disposant du lien\") "
               f"et les noms de variables en colonne A.")
+        valeurs["_source"] = f"config/cibles.py (0 variable reconnue dans {source})"
         return valeurs
 
     resultat = dict(valeurs)
@@ -215,4 +222,6 @@ def appliquer_surcharges(valeurs, racine):
                 resultat[nom_constante] = booleen
 
     print(f"  [i] Config externe appliquée depuis {source}.")
+    origine = "Google Sheet" if _est_url(source) else "fichier local"
+    resultat["_source"] = f"{origine} ({source})"
     return resultat

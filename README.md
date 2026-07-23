@@ -131,6 +131,15 @@ mandataires sociaux. Limite : 7 req/s. Effectif en **tranche** (pas le chiffre e
 
 ## Journal d'avancement
 
+- **2026-07 — Source de la config dans le récapitulatif.** `config/surcharge_config.py`
+  renvoie désormais une clé `_source` (texte lisible : Google Sheet appliqué,
+  fichier local, ou `config/cibles.py` avec la raison si la source externe n'a
+  pas pu être utilisée). Exposée comme `SOURCE_CONFIG` dans `config/cibles.py`,
+  transmise dans `stats` par `main.py`, et affichée en 1re ligne du
+  récapitulatif (console + `data/sorties/recap_*.txt` + webhook Slack/Teams) —
+  pour savoir en un coup d'œil, après coup, si un run a utilisé le Google Sheet
+  de Pauline ou les valeurs par défaut du code, et pourquoi si ce n'est pas
+  celui attendu.
 - **2026-07 — IDCC 9999 : marqueur officiel « sans convention collective ».**
   FACEO INNOTECH (VF COPERNIC IDF SUD) affichait le code brut `9999`. Vérifié :
   ce n'est ni un trou de données ni un bug — 9999 est un marqueur administratif

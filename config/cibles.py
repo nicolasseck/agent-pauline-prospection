@@ -80,3 +80,9 @@ SEUIL_RETENTION = _SURCHARGE["SEUIL_RETENTION"]
 INJECTER_PIPEDRIVE = _SURCHARGE["INJECTER_PIPEDRIVE"]
 EXCLURE_PROCEDURE_COLLECTIVE = _SURCHARGE["EXCLURE_PROCEDURE_COLLECTIVE"]
 NOTIFIER = _SURCHARGE["NOTIFIER"]
+
+# D'où viennent les valeurs ci-dessus pour ce run : "Google Sheet (url)",
+# "fichier local (chemin)" si la surcharge a été appliquée, sinon
+# "config/cibles.py (...)" avec la raison (aucune source configurée, source
+# illisible, etc.). Repris dans le récapitulatif de fin d'exécution.
+SOURCE_CONFIG = _SURCHARGE["_source"]

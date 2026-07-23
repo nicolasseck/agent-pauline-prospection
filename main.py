@@ -14,7 +14,7 @@ import os
 from datetime import date
 
 from config.cibles import (FILTRES_CIBLE, DEPARTEMENTS_CIBLE, OBJECTIF_PAR_RUN, SEUIL_RETENTION,
-                           INJECTER_PIPEDRIVE, EXCLURE_PROCEDURE_COLLECTIVE, NOTIFIER)
+                           INJECTER_PIPEDRIVE, EXCLURE_PROCEDURE_COLLECTIVE, NOTIFIER, SOURCE_CONFIG)
 from src.collecte import (charger_siren_vus, sauver_siren_vus, prochain_departement,
                           collecter, aplatir)
 from src.enrichissement import liens_recherche
@@ -28,7 +28,8 @@ DOSSIER_SORTIES = os.path.join(RACINE, "data", "sorties")
 
 
 def main():
-    stats = {"collectes": 0, "exclus_pc": 0, "injection": None}
+    stats = {"collectes": 0, "exclus_pc": 0, "injection": None, "source_config": SOURCE_CONFIG}
+    print(f"Configuration : {SOURCE_CONFIG}")
 
     # --- Brique 1 : Collecte (avec mémoire anti-doublons + rotation géographique) -
     siren_vus = charger_siren_vus(CHEMIN_MEMOIRE)
