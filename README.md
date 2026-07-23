@@ -46,6 +46,7 @@ agent_prospection_g2s/
 │   │   └── rotation_departement.json  dernier département utilisé (rotation)
 │   ├── convetions_c/
 │   │   └── convention.json    export Légifrance (noms + liens des CCN par IDCC)
+│   ├── dares_ape_idcc.xlsx     table DARES (code APE -> CCN la plus fréquente du secteur)
 │   └── sorties/
 │       └── prospects_AAAAMMJJ.xlsx   fichiers générés
 └── docs/
@@ -130,6 +131,30 @@ mandataires sociaux. Limite : 7 req/s. Effectif en **tranche** (pas le chiffre e
 
 ## Journal d'avancement
 
+- **2026-07 — Trou dans convention.json pour l'IDCC 1413 (intérim).** Un
+  prospect intérim (secteur prioritaire de Pauline) affichait le code brut
+  `1413` sans lien malgré une CCN officiellement déclarée. Cause : le texte
+  fondateur de cette convention (accord de 1986) est présent dans
+  `data/convetions_c/convention.json` mais classé "TI" (texte indépendant),
+  SANS le numéro IDCC sur sa ligne — invisible pour le chargeur, qui regroupe
+  par ce champ. `src/referentiels.py` ajoute `_CONVENTIONS_IDCC_MANUEL`, une
+  petite table de compléments vérifiés à la main (identifiant KALICONT
+  Légifrance), prioritaire sur le fichier JSON — même principe que les autres
+  tables de ce fichier, à compléter à chaque nouveau trou constaté du même
+  genre.
+- **2026-07 — Suggestion de CCN par secteur quand rien n'est déclaré.** Analyse
+  sur les exports réels : ~18 % des prospects n'ont aucune CCN déclarée à
+  l'INSEE (souvent un trou administratif, pas un signal de fiabilité — décision
+  prise de ne PAS exclure ces entreprises). `src/referentiels.py` charge
+  désormais `data/dares_ape_idcc.xlsx` (table DARES officielle, code APE ->
+  IDCC le plus fréquent du secteur, données 2022) : quand une entreprise n'a
+  strictement aucun code IDCC déclaré, `src/collecte.py` affiche une
+  suggestion — TOUJOURS préfixée « Suggestion secteur, non confirmée » et
+  accompagnée du % de salariés du secteur réellement couverts par cette
+  convention (jamais présentée comme une certitude). Un code APE non couvert
+  par la table DARES (« non diffusable » ou absent) n'affiche rien, comme
+  avant — aucune valeur inventée. Sans effet sur les entreprises ayant déjà
+  une CCN officiellement déclarée.
 - **2026-07 — Adresse affichée = établissement correspondant, pas toujours le
   siège.** Bug détecté en filtrant sur un département d'outre-mer (971) : des
   entreprises dont le SIÈGE est à Paris (ex. MASFIP) apparaissaient dans les

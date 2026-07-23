@@ -76,16 +76,96 @@ def _charger_conventions_idcc():
     return _CONVENTIONS_IDCC_CACHE
 
 
+# Compléments manuels : codes IDCC importants pour les secteurs prioritaires de
+# Pauline mais ABSENTS de data/convetions_c/convention.json — pas parce que le
+# fichier est incomplet dans son ensemble, mais parce que le texte fondateur de
+# ces conventions y est classé "TI" (texte indépendant) SANS numéro IDCC sur sa
+# ligne (ex. IDCC 1413/intérim : founding accord de 1986, présent dans le
+# fichier mais avec un champ IDCC vide -> invisible pour le chargeur ci-dessus).
+# Chaque entrée vérifiée individuellement (identifiant KALICONT Légifrance).
+# Prioritaire sur le fichier JSON. Table volontairement non exhaustive, à
+# compléter à chaque nouveau trou constaté (voir README, journal d'avancement).
+_CONVENTIONS_IDCC_MANUEL = {
+    "1413": ("Travail temporaire (salariés permanents)",
+             "https://www.legifrance.gouv.fr/conv_coll/id/KALICONT000005635905"),
+}
+
+
 def libelle_idcc(code):
     """Nom usuel de la convention collective pour un code IDCC, si connu."""
-    infos = _charger_conventions_idcc().get(str(code).strip().zfill(4))
+    code_norm = str(code).strip().zfill(4)
+    if code_norm in _CONVENTIONS_IDCC_MANUEL:
+        return _CONVENTIONS_IDCC_MANUEL[code_norm][0]
+    infos = _charger_conventions_idcc().get(code_norm)
     return infos[0] if infos else None
 
 
 def lien_legifrance_idcc(code):
     """URL Légifrance de la convention collective pour un code IDCC, si connue."""
-    infos = _charger_conventions_idcc().get(str(code).strip().zfill(4))
+    code_norm = str(code).strip().zfill(4)
+    if code_norm in _CONVENTIONS_IDCC_MANUEL:
+        return _CONVENTIONS_IDCC_MANUEL[code_norm][1]
+    infos = _charger_conventions_idcc().get(code_norm)
     return infos[1] if infos else None
+
+
+# --- Suggestion de CCN par secteur (DARES) — UNIQUEMENT quand l'entreprise -----
+# n'a AUCUNE convention officiellement déclarée par l'INSEE. Source :
+# data/dares_ape_idcc.xlsx (table de passage DARES code APE -> IDCC, données
+# 2022) : pour chaque code APE, plusieurs conventions coexistent en pratique,
+# chacune avec un % de salariés du secteur couverts (somme = 100 % par code
+# APE). On retient la plus fréquente et on affiche CE POURCENTAGE, pour que ce
+# soit toujours lu comme une indication statistique, jamais une certitude.
+# Certains codes APE sont "non diffusables" (échantillon trop petit / faible
+# couverture par les IDCC de branche) : pas de suggestion dans ce cas, jamais
+# de valeur inventée.
+_CHEMIN_DARES_APE_IDCC = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                                      "data", "dares_ape_idcc.xlsx")
+_FEUILLE_DARES = "IDCC2022_passageAPEIDCC_diff"
+_SUGGESTIONS_APE_IDCC_CACHE = None
+
+
+def _charger_suggestions_ape_idcc():
+    global _SUGGESTIONS_APE_IDCC_CACHE
+    if _SUGGESTIONS_APE_IDCC_CACHE is not None:
+        return _SUGGESTIONS_APE_IDCC_CACHE
+    meilleurs = {}
+    try:
+        from openpyxl import load_workbook
+        wb = load_workbook(_CHEMIN_DARES_APE_IDCC, read_only=True, data_only=True)
+        lignes = wb[_FEUILLE_DARES].iter_rows(values_only=True)
+        for ligne in lignes:
+            if ligne and ligne[0] == "apen":
+                break  # fin des lignes d'intro/mode d'emploi, données juste après
+        for ligne in lignes:
+            if not ligne or len(ligne) < 6:
+                continue
+            apen, _intape, _eff, idcc, intidcc, pctdiff = ligne[:6]
+            if not apen or not idcc or idcc == "Autre" or not isinstance(pctdiff, (int, float)):
+                continue  # code non diffusable, regroupement "Autre", ou ligne mal formée
+            code_naf = "".join(ch for ch in str(apen) if ch.isalnum()).upper()
+            try:
+                code_idcc = str(int(idcc)).zfill(4)
+            except (TypeError, ValueError):
+                continue
+            existant = meilleurs.get(code_naf)
+            if existant is None or pctdiff > existant[2]:
+                meilleurs[code_naf] = (code_idcc, intidcc, pctdiff)
+    except (OSError, KeyError, ValueError) as e:
+        print(f"  [!] {_CHEMIN_DARES_APE_IDCC} illisible ({e}) — suggestions de CCN par secteur indisponibles.")
+    _SUGGESTIONS_APE_IDCC_CACHE = meilleurs
+    return _SUGGESTIONS_APE_IDCC_CACHE
+
+
+def suggestion_idcc_pour_naf(code_naf):
+    """(code_idcc, intitulé DARES, % de salariés du secteur couverts) pour ce
+    code NAF/APE, si connu de la table DARES — sinon None (code non diffusable
+    ou absent de la table). À utiliser UNIQUEMENT en absence de CCN officielle
+    (voir collecte.py) : c'est une indication statistique, pas une certitude."""
+    if not code_naf:
+        return None
+    code = "".join(ch for ch in str(code_naf) if ch.isalnum()).upper()
+    return _charger_suggestions_ape_idcc().get(code)
 
 
 # --- Secteurs prioritaires (grille Pauline) -------------------------------------

@@ -25,7 +25,7 @@ import random
 import requests
 
 from src.referentiels import (TRANCHES_EFFECTIF, FORMES_JURIDIQUES, SECTIONS, secteur_prioritaire,
-                              libelle_idcc, lien_legifrance_idcc)
+                              libelle_idcc, lien_legifrance_idcc, suggestion_idcc_pour_naf)
 
 BASE_URL = "https://recherche-entreprises.api.gouv.fr/search"
 USER_AGENT = "G2S-prospection-agent/1.0 (contact: a-completer@g2s.fr)"
@@ -174,6 +174,21 @@ def _conventions_infos(codes_idcc):
     return {"texte": "; ".join(textes), "url": "; ".join(liens) if liens else None}
 
 
+def _suggestion_conv_infos(code_naf):
+    """Quand l'entreprise n'a AUCUNE CCN officiellement déclarée : suggestion
+    statistique (source DARES, table code APE -> IDCC) de la convention la
+    plus fréquente pour son secteur, TOUJOURS avec le % de salariés du secteur
+    concernés affiché, pour que ce soit lu comme une indication et non une
+    certitude. Pas de suggestion possible (code APE non diffusable/inconnu de
+    la table) -> texte vide, comme avant."""
+    suggestion = suggestion_idcc_pour_naf(code_naf)
+    if not suggestion:
+        return {"texte": "", "url": None}
+    code_idcc, intitule_dares, pct = suggestion
+    texte = f"Suggestion secteur, non confirmée ({pct:.0f}% des salariés du secteur) : {intitule_dares}"
+    return {"texte": texte, "url": lien_legifrance_idcc(code_idcc)}
+
+
 def _chiffre_affaires(entreprise):
     """CA du dernier bilan disponible."""
     finances = entreprise.get("finances") or {}
@@ -228,7 +243,7 @@ def aplatir(entreprise):
     code_tranche = entreprise.get("tranche_effectif_salarie")
     code_forme = entreprise.get("nature_juridique")
     idcc = _conventions(entreprise)
-    conv = _conventions_infos(idcc)
+    conv = _conventions_infos(idcc) if idcc else _suggestion_conv_infos(entreprise.get("activite_principale"))
     sec = secteur_prioritaire(entreprise.get("activite_principale"))
     secteur_lib = sec[0] if sec else SECTIONS.get(entreprise.get("section_activite_principale"), "")
     return {
