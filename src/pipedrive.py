@@ -36,7 +36,7 @@ CHAMPS_ORG = {
     "conventions_idcc_url": "Lien CCN (Légifrance)",  # absent -> note ; sinon cliquable comme le champ adresse
     "dirigeants": "Nom dirigeant",
     "source": "Source",                             # absent -> note
-    "lien_linkedin": "Profil LinkedIn",
+    "lien_linkedin": "Profil Linkedin",
     "lien_google": "Recherche Google (DRH/DAF)",    # absent -> note
     "lien_site_web": "Site web",               # absent -> note
 }
