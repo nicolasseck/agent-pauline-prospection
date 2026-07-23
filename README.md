@@ -131,6 +131,38 @@ mandataires sociaux. Limite : 7 req/s. Effectif en **tranche** (pas le chiffre e
 
 ## Journal d'avancement
 
+- **2026-07 — IDCC 9999 : marqueur officiel « sans convention collective ».**
+  FACEO INNOTECH (VF COPERNIC IDF SUD) affichait le code brut `9999`. Vérifié :
+  ce n'est ni un trou de données ni un bug — 9999 est un marqueur administratif
+  **obligatoire en DSN** quand l'entreprise n'applique aucune convention de
+  branche étendue (le Code du travail reste applicable, juste pas de CCN
+  spécifique). Comme pour `5021`, ajouté à `_CONVENTIONS_IDCC_MANUEL` avec
+  `url=None` explicite — libellé clair plutôt qu'un code qui ressemble à une
+  erreur. Cas déjà anticipé lors de l'analyse du 15/07 (deux prospects avec ce
+  même code brut) mais non résolu à l'époque, faute d'avoir vérifié sa
+  signification exacte.
+- **2026-07 — Repli automatique sur les libellés DARES (moins de maintenance
+  manuelle).** `_CONVENTIONS_IDCC_MANUEL` demandait un ajout à la main à
+  chaque nouveau trou de `convention.json`. `data/dares_ape_idcc.xlsx`
+  contient déjà, en sous-produit de sa table code APE -> IDCC, un libellé pour
+  chaque code IDCC qu'il mentionne. `libelle_idcc()` s'en sert désormais comme
+  3ᵉ niveau de repli automatique (après les compléments manuels, puis
+  convention.json) : 86 codes actuellement couverts par ce repli sans aucune
+  intervention manuelle (nom affiché, sans lien Légifrance — cette source n'en
+  fournit pas). Reste nécessairement manuel : les codes qui ne sont PAS de
+  vraies conventions collectives négociées (ex. 5021, statut de la fonction
+  publique territoriale) — aucune source sur les "conventions collectives" ne
+  les contiendra jamais, par nature.
+- **2026-07 — IDCC 5021 : pas un trou de données, un statut public.** Un CCAS
+  (établissement public, ex. Centre communal d'action sociale) affichait le
+  code brut `5021` sans lien. Vérifié via l'API : IDCC 5021 = « Fonction
+  publique territoriale » — un statut légal (Code général de la fonction
+  publique), pas une convention collective négociée. Aucune page Légifrance
+  de convention n'existe pour ce code, à raison : `convention.json` (un export
+  de *conventions collectives*) ne l'a jamais eu et ne l'aura jamais. Ajouté à
+  `_CONVENTIONS_IDCC_MANUEL` avec `url=None` explicite, pour afficher un
+  libellé clair (« Fonction publique territoriale (statut, pas une convention
+  collective) ») plutôt qu'un code brut qui ressemble à un bug.
 - **2026-07 — Trou dans convention.json pour l'IDCC 1413 (intérim).** Un
   prospect intérim (secteur prioritaire de Pauline) affichait le code brut
   `1413` sans lien malgré une CCN officiellement déclarée. Cause : le texte

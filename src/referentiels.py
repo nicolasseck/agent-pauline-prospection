@@ -76,28 +76,40 @@ def _charger_conventions_idcc():
     return _CONVENTIONS_IDCC_CACHE
 
 
-# Compléments manuels : codes IDCC importants pour les secteurs prioritaires de
-# Pauline mais ABSENTS de data/convetions_c/convention.json — pas parce que le
-# fichier est incomplet dans son ensemble, mais parce que le texte fondateur de
-# ces conventions y est classé "TI" (texte indépendant) SANS numéro IDCC sur sa
-# ligne (ex. IDCC 1413/intérim : founding accord de 1986, présent dans le
-# fichier mais avec un champ IDCC vide -> invisible pour le chargeur ci-dessus).
+# Compléments manuels — dernier recours, PAS le premier réflexe en cas de trou :
+# la plupart des codes absents de convention.json sont maintenant comblés
+# automatiquement par le repli DARES ci-dessous (_libelle_idcc_dares), sans
+# rien ajouter ici. Cette table ne devrait plus servir que pour :
+#   1) un code manquant aux DEUX sources ET vérifié à la main (rare désormais) ;
+#   2) un code qui n'est PAS une vraie convention collective négociée (ex. 5021
+#      = fonction publique territoriale, régie par le Code général de la
+#      fonction publique) — ni convention.json ni le fichier DARES ne le
+#      contiendront jamais, par nature, donc aucun repli automatique n'aidera.
 # Chaque entrée vérifiée individuellement (identifiant KALICONT Légifrance).
-# Prioritaire sur le fichier JSON. Table volontairement non exhaustive, à
-# compléter à chaque nouveau trou constaté (voir README, journal d'avancement).
+# Prioritaire sur les deux sources automatiques. url=None = volontaire (cas 2).
 _CONVENTIONS_IDCC_MANUEL = {
     "1413": ("Travail temporaire (salariés permanents)",
              "https://www.legifrance.gouv.fr/conv_coll/id/KALICONT000005635905"),
+    "5021": ("Fonction publique territoriale (statut, pas une convention collective)", None),
+    "9999": ("Sans convention collective (aucune convention de branche applicable)", None),
 }
 
 
 def libelle_idcc(code):
-    """Nom usuel de la convention collective pour un code IDCC, si connu."""
+    """Nom usuel de la convention collective pour un code IDCC, si connu.
+    Ordre de recherche : 1) compléments manuels vérifiés à la main (nom + lien
+    fiables), 2) data/convetions_c/convention.json (nom + lien Légifrance),
+    3) data/dares_ape_idcc.xlsx (nom seul, sans lien — comble automatiquement
+    la plupart des trous du (2) sans intervention manuelle, voir
+    _libelle_idcc_dares). Un code qui échoue aux trois est affiché tel quel
+    par l'appelant (jamais de nom inventé)."""
     code_norm = str(code).strip().zfill(4)
     if code_norm in _CONVENTIONS_IDCC_MANUEL:
         return _CONVENTIONS_IDCC_MANUEL[code_norm][0]
     infos = _charger_conventions_idcc().get(code_norm)
-    return infos[0] if infos else None
+    if infos:
+        return infos[0]
+    return _libelle_idcc_dares(code_norm)
 
 
 def lien_legifrance_idcc(code):
@@ -123,13 +135,21 @@ _CHEMIN_DARES_APE_IDCC = os.path.join(os.path.dirname(os.path.dirname(os.path.ab
                                       "data", "dares_ape_idcc.xlsx")
 _FEUILLE_DARES = "IDCC2022_passageAPEIDCC_diff"
 _SUGGESTIONS_APE_IDCC_CACHE = None
+# Sous-produit de la même table : {code_idcc -> libellé DARES}, TOUS les codes
+# IDCC que le fichier mentionne (pas seulement le plus fréquent par secteur).
+# Sert de repli automatique dans libelle_idcc() quand convention.json n'a pas
+# le code (ex. texte fondateur classé "TI" sans numéro IDCC, voir plus haut) —
+# comble la plupart de ces trous SANS ajout manuel. Pas de lien Légifrance
+# disponible depuis cette source (le fichier DARES n'en contient pas).
+_LIBELLES_IDCC_DARES_CACHE = None
 
 
 def _charger_suggestions_ape_idcc():
-    global _SUGGESTIONS_APE_IDCC_CACHE
+    global _SUGGESTIONS_APE_IDCC_CACHE, _LIBELLES_IDCC_DARES_CACHE
     if _SUGGESTIONS_APE_IDCC_CACHE is not None:
         return _SUGGESTIONS_APE_IDCC_CACHE
     meilleurs = {}
+    libelles = {}
     try:
         from openpyxl import load_workbook
         wb = load_workbook(_CHEMIN_DARES_APE_IDCC, read_only=True, data_only=True)
@@ -148,13 +168,23 @@ def _charger_suggestions_ape_idcc():
                 code_idcc = str(int(idcc)).zfill(4)
             except (TypeError, ValueError):
                 continue
+            libelles.setdefault(code_idcc, intidcc)
             existant = meilleurs.get(code_naf)
             if existant is None or pctdiff > existant[2]:
                 meilleurs[code_naf] = (code_idcc, intidcc, pctdiff)
     except (OSError, KeyError, ValueError) as e:
         print(f"  [!] {_CHEMIN_DARES_APE_IDCC} illisible ({e}) — suggestions de CCN par secteur indisponibles.")
     _SUGGESTIONS_APE_IDCC_CACHE = meilleurs
+    _LIBELLES_IDCC_DARES_CACHE = libelles
     return _SUGGESTIONS_APE_IDCC_CACHE
+
+
+def _libelle_idcc_dares(code_idcc):
+    """Libellé DARES pour un code IDCC (sans lien Légifrance) — repli de
+    libelle_idcc() quand convention.json n'a pas le code."""
+    if _LIBELLES_IDCC_DARES_CACHE is None:
+        _charger_suggestions_ape_idcc()  # remplit aussi _LIBELLES_IDCC_DARES_CACHE
+    return (_LIBELLES_IDCC_DARES_CACHE or {}).get(code_idcc)
 
 
 def suggestion_idcc_pour_naf(code_naf):
